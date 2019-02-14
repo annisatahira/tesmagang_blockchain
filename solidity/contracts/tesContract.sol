@@ -1,4 +1,4 @@
-pragma solidity >=0.4.21 <0.6.0;
+pragma solidity ^0.5.0;
 
 contract ERC20Basic {
     uint256 public totalSupply;
@@ -39,12 +39,29 @@ contract BasicToken is ERC20Basic {
     using SafeMath for uint256;
 
     address public owner;
+    address public newOwner;
 
     mapping(address => uint256) balances;
 
     modifier onlyOwner {
         require(msg.sender == owner);
         _;
+    }
+
+    event OwnershipTransferred(address indexed _from, address indexed _to);
+
+    constructor () public {
+        owner = msg.sender;
+    }
+
+    function transferOwnership(address _newOwner) public onlyOwner {
+        newOwner = _newOwner;
+    }
+    function acceptOwnership() public {
+        require(msg.sender == newOwner);
+        emit OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
+        newOwner = address(0);
     }
 
     function transfer(address _to, uint256 _value) public returns (bool) {
@@ -58,66 +75,58 @@ contract BasicToken is ERC20Basic {
         return true;
     }
 
-    function balanceOf(address _owner) onlyOwner public view  returns (uint256 balance) {
+    function balanceOf(address _owner) public view  returns (uint256 balance) {
         return balances[_owner];
     }
-
-}
-
-contract ERC20 is ERC20Basic {
-    function allowance(address owner, address spender) public view returns (uint256);
-    function transferFrom(address from, address to, uint256 value) public returns (bool);
-    function approve(address spender, uint256 value) public returns (bool);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-}
-
-
-
-contract StandardToken is ERC20, BasicToken {
-
-    mapping (address => mapping (address => uint256)) internal allowed;
 
     function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
         require(_value > 0);
         require(_to != address(0));
         require(_value <= balances[_from]);
-        require(_value <= allowed[_from][msg.sender]);
 
         balances[_from] = balances[_from].sub(_value);
         balances[_to] = balances[_to].add(_value);
-        allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
         emit Transfer(_from, _to, _value);
         return true;
+
     }
 
-    function approve(address _spender, uint256 _value) public returns (bool) {
-        require(_value > 0);
-        allowed[msg.sender][_spender] = _value;
-        emit Approval(msg.sender, _spender, _value);
-        return true;
+    function totSupply() public view returns (uint256){
+        return totalSupply;  
+    }
+    
+    event IncreaseToken(
+        string keterangan
+    );
+
+    function increaseTokenSupply(uint256 _value,string memory _ket) public onlyOwner {
+        totalSupply = totalSupply.add(_value);
+        balances[owner] = balances[owner].add(_value);
+        emit Transfer(address(0),msg.sender,_value);
+        emit IncreaseToken(_ket);
+
     }
 
-    function allowance(address _owner, address _spender) public view returns (uint256) {
-        return allowed[_owner][_spender];
-    }
+    event NewTransferBalance(
+        address indexed _from,
+        address indexed _to,
+        uint256 _value,
+        string _status,
+        string _message
+    );
 
-    function increaseApproval(address _spender, uint _addedValue) public returns (bool) {
-        require(_addedValue > 0);
-        allowed[msg.sender][_spender] = allowed[msg.sender][_spender].add(_addedValue);
-        emit Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
-        return true;
-    }
+    function newTransferBalance(address _from,address _to, uint256 _value) public onlyOwner returns  (bool success) {
+        if (_value <= 0 || balances[_from] <= _value){
+            emit NewTransferBalance(_from, _to, _value,"failed","Transfer balance failed, balance not enough or amount not valid");
+            return false;
+        }else{  
+            balances[_from] = balances[_from].sub(_value);
+            balances[_to] = balances[_to].add(_value);
 
-    function decreaseApproval(address _spender, uint _subtractedValue) public returns (bool) {
-        require(_subtractedValue > 0);
-        uint oldValue = allowed[msg.sender][_spender];
-        if (_subtractedValue > oldValue) {
-            allowed[msg.sender][_spender] = 0;
-        } else {
-            allowed[msg.sender][_spender] = oldValue.sub(_subtractedValue);
+            emit NewTransferBalance(_from, _to, _value,"success","Transfer balance success, no problems found");
+            emit Transfer(_from, _to, _value);
+            return true;
         }
-        emit Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
-        return true;
     }
 
 }
@@ -138,19 +147,17 @@ contract BurnableToken is BasicToken {
 }
 
 
-contract tesContract is StandardToken, BurnableToken {
+contract tesContract is BasicToken, BurnableToken {
 
-    string public constant name = "Tes-Contract-AT"; 
-    string public constant symbol = "TCAT"; 
-    uint8 public constant decimals = 18; 
+    string public constant name = "Tes-Contract-AT2";
+    string public constant symbol = "TCAT2";
+    uint8 public constant decimals = 8;
+    uint256 public constant INITIAL_SUPPLY = 200000000 * (10 ** uint256(decimals));
 
-    uint256 public constant INITIAL_SUPPLY = 200000000 * (10 ** uint256(decimals)); //yang akan dijual ke user
-
-    constructor(address _superowner) public { //hanya owner yang bisa akses 
-        owner = msg.sender;
-        totalSupply = INITIAL_SUPPLY; //saldo dari ownernya
-        balances[msg.sender] = INITIAL_SUPPLY; //meng-set saldo
-        emit Transfer(address(0), msg.sender, INITIAL_SUPPLY); //setiap transaksi ada emit biar bisa dibaca oleh node.js nya
+    constructor(address _superowner) public {
+        owner = _superowner;
+        totalSupply = INITIAL_SUPPLY;
+        balances[msg.sender] = INITIAL_SUPPLY;
+        emit Transfer(address(0), msg.sender, INITIAL_SUPPLY);
     }
-
 }

@@ -13,7 +13,7 @@ const cors = require('cors');
 const web3_setting = require('./utils/web3_setting');
 
 var app = express();
-var port = process.env.PORT || 3000;
+var port = process.env.PORT || 5000;
 
 app.use(bodyParser.urlencoded({
  extended: true
